@@ -1,4 +1,4 @@
-m<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
@@ -9,12 +9,34 @@ m<!DOCTYPE html>
     <style>
         body { background-color: #000; color: #fff; font-family: Roboto, sans-serif; overflow: hidden; margin: 0; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* Navigation mit Blur */
+        .glass-nav {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+        }
+
+        /* Player Slide Animation */
         #player-overlay { transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
         #player-overlay.active { transform: translateY(0); }
-        .tab-content { display: none; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+        /* Shorts Scroll-System */
+        .shorts-container {
+            height: 100%;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+        }
+        .short-video {
+            height: 100%;
+            scroll-snap-align: start;
+            position: relative;
+            background: #000;
+        }
+
+        .tab-content { display: none; height: calc(100vh - 130px); overflow-y: auto; }
         .tab-content.active { display: block; }
-        .nav-item.active { color: white; }
-        .video-card img { border-radius: 12px; }
+        .tab-content#shorts { height: calc(100vh - 70px); } /* Shorts brauchen mehr Platz */
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -22,23 +44,28 @@ m<!DOCTYPE html>
     <header class="flex items-center justify-between px-4 py-3 bg-black z-50">
         <div class="flex items-center gap-1" onclick="showTab('home')">
             <i class="fab fa-youtube text-red-600 text-3xl"></i>
-            <span class="text-xl font-bold tracking-tighter">TubeFlow</span>
+            <span class="text-xl font-bold tracking-tighter italic">TubeFlow</span>
         </div>
         <div class="flex items-center gap-5">
             <i class="fas fa-search text-xl" onclick="document.getElementById('searchBar').classList.toggle('hidden')"></i>
-            <div onclick="showTab('profile')" class="w-8 h-8 bg-gradient-to-tr from-blue-500 to-emerald-500 rounded-full flex items-center justify-center font-bold text-xs">U</div>
+            <div onclick="showTab('profile')" class="w-8 h-8 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-xs cursor-pointer">U</div>
         </div>
     </header>
 
     <div id="searchBar" class="hidden px-4 py-2 bg-black border-b border-zinc-800">
         <form onsubmit="event.preventDefault(); search();">
-            <input type="text" id="searchInput" placeholder="Suchen..." class="w-full bg-zinc-900 rounded-full px-4 py-2 outline-none text-sm">
+            <input type="text" id="searchInput" placeholder="YouTube durchsuchen..." class="w-full bg-zinc-900 rounded-full px-4 py-2 outline-none text-sm border border-zinc-700">
         </form>
     </div>
 
-    <main class="flex-1 overflow-hidden pb-20">
+    <main class="flex-1 overflow-hidden">
         <section id="home" class="tab-content active no-scrollbar">
-            <div id="videoGrid" class="flex flex-col gap-4 p-2"></div>
+            <div id="videoGrid" class="flex flex-col gap-1 p-0"></div>
+        </section>
+
+        <section id="shorts" class="tab-content no-scrollbar p-0">
+            <div id="shortsContainer" class="shorts-container no-scrollbar">
+                </div>
         </section>
 
         <section id="subs" class="tab-content p-4">
@@ -46,232 +73,153 @@ m<!DOCTYPE html>
             <div id="subsList" class="space-y-3"></div>
         </section>
 
-        <section id="library" class="tab-content p-4">
-            <h2 class="text-xl font-bold mb-6">Mediathek</h2>
-            
-            <div class="mb-8">
-                <h3 class="flex items-center gap-2 font-bold mb-4 text-zinc-300"><i class="fas fa-clock-rotate-left"></i> Verlauf</h3>
-                <div id="historyList" class="flex flex-col gap-4"></div>
-            </div>
-
-            <div>
-                <h3 class="flex items-center gap-2 font-bold mb-4 text-zinc-300"><i class="fas fa-thumbs-up"></i> Videos, die dir gefallen</h3>
-                <div id="likesList" class="flex flex-col gap-4"></div>
-            </div>
-        </section>
-
         <section id="profile" class="tab-content p-6">
             <div class="text-center mb-10">
-                <div class="w-20 h-20 bg-gradient-to-tr from-blue-500 to-emerald-500 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold">U</div>
+                <div class="w-20 h-20 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold">U</div>
                 <h2 class="text-xl font-bold">Mein Account</h2>
-                <p class="text-zinc-500 text-xs">Offline-Profil (Nur lokaler Speicher)</p>
-            </div>
-
-            <div class="bg-zinc-900 rounded-2xl p-4 mb-6">
-                <h3 class="font-bold mb-4 text-sm">Statistiken</h3>
-                <div class="grid grid-cols-3 gap-2 text-center">
-                    <div class="bg-black/20 p-2 rounded-lg"><p id="stat-subs" class="font-bold">0</p><p class="text-[10px] text-zinc-500">Abos</p></div>
-                    <div class="bg-black/20 p-2 rounded-lg"><p id="stat-likes" class="font-bold">0</p><p class="text-[10px] text-zinc-500">Likes</p></div>
-                    <div class="bg-black/20 p-2 rounded-lg"><p id="stat-hist" class="font-bold">0</p><p class="text-[10px] text-zinc-500">Videos</p></div>
+                <div class="flex gap-2 justify-center mt-4">
+                   <button onclick="exportData()" class="bg-zinc-800 px-4 py-2 rounded-lg text-xs font-bold">Export</button>
+                   <button onclick="importData()" class="bg-zinc-800 px-4 py-2 rounded-lg text-xs font-bold">Import</button>
                 </div>
             </div>
-
-            <div class="space-y-3">
-                <button onclick="exportData()" class="w-full bg-zinc-800 text-white py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2">
-                    <i class="fas fa-file-export"></i> Daten sichern (Export)
-                </button>
-                <button onclick="importData()" class="w-full bg-zinc-800 text-white py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2">
-                    <i class="fas fa-file-import"></i> Sicherung laden (Import)
-                </button>
-                <button onclick="if(confirm('Alle Daten löschen?')) clearStorage()" class="w-full text-red-500 py-3 text-xs font-bold">
-                    Alles zurücksetzen
-                </button>
+            <div class="space-y-4">
+                <div class="bg-zinc-900 p-4 rounded-xl flex justify-between"><span>Abos</span><span id="stat-subs">0</span></div>
+                <div class="bg-zinc-900 p-4 rounded-xl flex justify-between"><span>Likes</span><span id="stat-likes">0</span></div>
             </div>
         </section>
     </main>
 
-    <nav class="fixed bottom-0 w-full bg-black border-t border-zinc-900 flex justify-around py-3 z-40">
-        <div onclick="showTab('home')" class="nav-item flex flex-col items-center gap-1 text-[10px] text-zinc-500"><i class="fas fa-house text-lg"></i><span>Home</span></div>
-        <div onclick="showTab('subs')" class="nav-item flex flex-col items-center gap-1 text-[10px] text-zinc-500"><i class="fas fa-layer-group text-lg"></i><span>Abos</span></div>
-        <div onclick="showTab('library')" class="nav-item flex flex-col items-center gap-1 text-[10px] text-zinc-500"><i class="fas fa-play-circle text-lg"></i><span>Mediathek</span></div>
-        <div onclick="showTab('profile')" class="nav-item flex flex-col items-center gap-1 text-[10px] text-zinc-500"><i class="fas fa-user-circle text-lg"></i><span>Profil</span></div>
+    <nav class="fixed bottom-0 w-full glass-nav border-t border-zinc-900 flex justify-around pt-3 pb-8 z-40">
+        <div onclick="showTab('home')" class="flex flex-col items-center gap-1 text-[10px] text-zinc-400 cursor-pointer">
+            <i class="fas fa-house text-lg"></i><span>Home</span>
+        </div>
+        <div onclick="showTab('shorts')" class="flex flex-col items-center gap-1 text-[10px] text-zinc-400 cursor-pointer">
+            <i class="fas fa-bolt text-lg"></i><span>Shorts</span>
+        </div>
+        <div class="flex flex-col items-center justify-center -mt-2"><i class="fas fa-circle-plus text-3xl"></i></div>
+        <div onclick="showTab('subs')" class="flex flex-col items-center gap-1 text-[10px] text-zinc-400 cursor-pointer">
+            <i class="fas fa-layer-group text-lg"></i><span>Abos</span>
+        </div>
+        <div onclick="showTab('profile')" class="flex flex-col items-center gap-1 text-[10px] text-zinc-400 cursor-pointer">
+            <i class="fas fa-user-circle text-lg"></i><span>Profil</span>
+        </div>
     </nav>
 
     <div id="player-overlay" class="fixed inset-0 bg-black z-[60] flex flex-col">
         <div class="p-2" onclick="closePlayer()"><i class="fas fa-chevron-down p-4 text-xl"></i></div>
-        <div class="w-full aspect-video bg-zinc-900 shadow-2xl">
-            <iframe id="main-player" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay"></iframe>
-        </div>
-        <div class="flex-1 overflow-y-auto p-5 no-scrollbar">
-            <h1 id="player-title" class="text-lg font-bold leading-snug">Video Titel</h1>
-            <div class="flex items-center justify-between mt-5 pb-5 border-b border-zinc-800">
+        <div class="w-full aspect-video"><iframe id="main-player" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay"></iframe></div>
+        <div class="flex-1 overflow-y-auto p-5">
+            <h1 id="player-title" class="text-lg font-bold">Titel</h1>
+            <div class="flex items-center justify-between mt-4 pb-4 border-b border-zinc-800">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center font-bold text-xs text-zinc-500">CH</div>
-                    <p id="player-channel" class="font-bold text-sm">Kanal Name</p>
+                    <img id="player-chan-img" src="" class="w-10 h-10 rounded-full bg-zinc-800">
+                    <p id="player-channel" class="font-bold text-sm">Channel</p>
                 </div>
-                <button id="subBtn" onclick="toggleSub()" class="bg-white text-black px-4 py-2 rounded-full text-xs font-bold transition-all">Abonnieren</button>
+                <button id="subBtn" onclick="toggleSub()" class="bg-white text-black px-4 py-2 rounded-full text-xs font-bold">Abonnieren</button>
             </div>
-            <div class="flex gap-3 mt-6 border-b border-zinc-800 pb-6">
-                <button id="likeBtn" onclick="toggleLike()" class="bg-zinc-800 px-5 py-2.5 rounded-full text-xs flex items-center gap-2"><i class="fas fa-thumbs-up"></i> <span>Like</span></button>
-                <button class="bg-zinc-800 px-5 py-2.5 rounded-full text-xs flex items-center gap-2"><i class="fas fa-share"></i> <span>Teilen</span></button>
-            </div>
-            <div class="mt-6">
-                <h3 class="font-bold mb-5 flex items-center gap-2">Kommentare</h3>
-                <div id="commentsList" class="space-y-5 pb-10"></div>
-            </div>
+            <div id="commentsList" class="mt-6 space-y-4"></div>
         </div>
     </div>
 
     <script>
         const API = "https://inv.vern.cc/api/v1";
-        let db = JSON.parse(localStorage.getItem('tubeflow_data')) || { subs: [], likes: [], history: [] };
+        let db = JSON.parse(localStorage.getItem('tubeflow_v3')) || { subs: [], likes: [], history: [] };
         let activeVideo = null;
-
-        function save() { 
-            localStorage.setItem('tubeflow_data', JSON.stringify(db));
-            updateStats();
-        }
 
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            if(tabId === 'library') renderLibrary();
+            if(tabId === 'shorts') loadShorts();
             if(tabId === 'subs') renderSubs();
             document.getElementById('searchBar').classList.add('hidden');
         }
 
-        async function search(q = "Musik Trends") {
+        async function search(q = "Musik") {
             const query = document.getElementById('searchInput').value || q;
             const grid = document.getElementById('videoGrid');
-            grid.innerHTML = '<div class="py-20 text-center text-zinc-500 animate-pulse text-sm">Durchsuche YouTube...</div>';
+            grid.innerHTML = '<div class="p-10 text-center">Lade...</div>';
             showTab('home');
 
             try {
                 const res = await fetch(`${API}/search?q=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 grid.innerHTML = data.filter(v => v.type === 'video').map(v => `
-                    <div class="video-card flex flex-col" onclick="openPlayer('${v.videoId}', '${v.title.replace(/'/g,"")}', '${v.author}')">
-                        <img src="${v.videoThumbnails[0].url}" class="w-full aspect-video object-cover bg-zinc-900">
+                    <div class="mb-4" onclick="openPlayer('${v.videoId}', '${v.title.replace(/'/g,"")}', '${v.author}')">
+                        <img src="${v.videoThumbnails[0].url}" class="w-full aspect-video object-cover">
                         <div class="flex gap-3 p-3">
-                            <div class="w-10 h-10 bg-zinc-800 rounded-full flex-shrink-0"></div>
-                            <div class="flex-1">
-                                <h3 class="text-sm font-medium line-clamp-2 leading-tight">${v.title}</h3>
-                                <p class="text-zinc-500 text-[11px] mt-1">${v.author} • ${v.viewCountText}</p>
+                            <img src="https://ui-avatars.com/api/?name=${v.author}&background=random" class="w-10 h-10 rounded-full">
+                            <div>
+                                <h3 class="text-sm font-medium line-clamp-2">${v.title}</h3>
+                                <p class="text-zinc-500 text-[11px]">${v.author} • ${v.viewCountText}</p>
                             </div>
                         </div>
                     </div>`).join('');
-            } catch(e) { grid.innerHTML = '<p class="p-10 text-center text-xs">Instanz überlastet. Bitte später erneut versuchen.</p>'; }
+            } catch(e) { console.error(e); }
         }
 
-        async function openPlayer(id, title, channel) {
+        async function loadShorts() {
+            const container = document.getElementById('shortsContainer');
+            container.innerHTML = '<div class="h-screen flex items-center justify-center">Lade Shorts...</div>';
+            try {
+                const res = await fetch(`${API}/search?q=Shorts+Funny`);
+                const data = await res.json();
+                container.innerHTML = data.filter(v => v.type === 'video').map(v => `
+                    <div class="short-video">
+                        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${v.videoId}?autoplay=0&controls=0&loop=1" frameborder="0"></iframe>
+                        <div class="absolute bottom-20 left-4 z-10">
+                            <h3 class="font-bold text-sm shadow-lg">${v.author}</h3>
+                            <p class="text-xs line-clamp-1">${v.title}</p>
+                        </div>
+                        <div class="absolute bottom-24 right-4 z-10 flex flex-col gap-6 text-xl">
+                            <i class="fas fa-thumbs-up"></i>
+                            <i class="fas fa-comment"></i>
+                            <i class="fas fa-share"></i>
+                        </div>
+                    </div>`).join('');
+            } catch(e) { container.innerHTML = "Fehler beim Laden der Shorts."; }
+        }
+
+        function openPlayer(id, title, channel) {
             activeVideo = { id, title, channel };
-            document.getElementById('main-player').src = `https://www.youtube.com/embed/${id}?autoplay=1&modestbranding=1`;
+            document.getElementById('main-player').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
             document.getElementById('player-title').innerText = title;
             document.getElementById('player-channel').innerText = channel;
+            document.getElementById('player-chan-img').src = `https://ui-avatars.com/api/?name=${channel}&background=random`;
             document.getElementById('player-overlay').classList.add('active');
-            
-            // In Verlauf speichern (Duplikate vermeiden)
-            db.history = db.history.filter(v => v.id !== id);
-            db.history.unshift(activeVideo);
-            if(db.history.length > 50) db.history.pop();
-            save();
             loadComments(id);
-            updateButtons();
         }
 
         async function loadComments(id) {
             const list = document.getElementById('commentsList');
-            list.innerHTML = '<p class="text-[10px] text-zinc-500">Lade echte Kommentare...</p>';
+            list.innerHTML = 'Kommentare laden...';
             try {
                 const res = await fetch(`${API}/comments/${id}`);
                 const data = await res.json();
-                list.innerHTML = data.comments.slice(0, 15).map(c => `
-                    <div class="flex gap-3 items-start">
-                        <div class="w-8 h-8 bg-zinc-900 rounded-full flex-shrink-0"></div>
-                        <div class="flex-1"><p class="text-[11px] font-bold text-zinc-400 mb-1">${c.author}</p><p class="text-xs leading-relaxed">${c.content}</p></div>
+                list.innerHTML = data.comments.slice(0, 10).map(c => `
+                    <div class="flex gap-3 text-xs">
+                        <img src="https://ui-avatars.com/api/?name=${c.author}&size=32" class="w-8 h-8 rounded-full">
+                        <div><p class="font-bold">${c.author}</p><p class="text-zinc-400">${c.content}</p></div>
                     </div>`).join('');
-            } catch(e) { list.innerHTML = '<p class="text-zinc-500 text-xs text-center">Keine Kommentare verfügbar.</p>'; }
-        }
-
-        function toggleLike() {
-            const idx = db.likes.findIndex(x => x.id === activeVideo.id);
-            if(idx > -1) db.likes.splice(idx, 1);
-            else db.likes.unshift(activeVideo);
-            save();
-            updateButtons();
+            } catch(e) { list.innerHTML = ''; }
         }
 
         function toggleSub() {
             const idx = db.subs.indexOf(activeVideo.channel);
             if(idx > -1) db.subs.splice(idx, 1);
             else db.subs.push(activeVideo.channel);
-            save();
-            updateButtons();
-        }
-
-        function updateButtons() {
-            const isLiked = db.likes.find(x => x.id === activeVideo.id);
-            const isSubbed = db.subs.includes(activeVideo.channel);
-            document.getElementById('likeBtn').className = isLiked ? 'bg-white text-black px-5 py-2.5 rounded-full text-xs font-bold' : 'bg-zinc-800 px-5 py-2.5 rounded-full text-xs';
-            document.getElementById('subBtn').className = isSubbed ? 'bg-zinc-800 text-zinc-400 px-4 py-2 rounded-full text-xs font-bold' : 'bg-white text-black px-4 py-2 rounded-full text-xs font-bold';
-            document.getElementById('subBtn').innerText = isSubbed ? 'Abonniert' : 'Abonnieren';
-        }
-
-        function renderLibrary() {
-            const histList = document.getElementById('historyList');
-            const likesList = document.getElementById('likesList');
-            
-            const vMap = (v) => `
-                <div class="flex gap-4 items-center" onclick="openPlayer('${v.id}','${v.title}','${v.channel}')">
-                    <img src="https://img.youtube.com/vi/${v.id}/mqdefault.jpg" class="w-32 aspect-video rounded-lg object-cover">
-                    <div class="flex-1 overflow-hidden"><p class="text-xs font-bold line-clamp-2">${v.title}</p><p class="text-[10px] text-zinc-500 mt-1">${v.channel}</p></div>
-                </div>`;
-
-            histList.innerHTML = db.history.length ? db.history.map(vMap).join('') : '<p class="text-zinc-600 text-xs">Kein Verlauf vorhanden.</p>';
-            likesList.innerHTML = db.likes.length ? db.likes.map(vMap).join('') : '<p class="text-zinc-600 text-xs">Keine gelikten Videos.</p>';
+            localStorage.setItem('tubeflow_v3', JSON.stringify(db));
+            alert(db.subs.includes(activeVideo.channel) ? "Abonniert!" : "Abo entfernt!");
         }
 
         function renderSubs() {
             document.getElementById('subsList').innerHTML = db.subs.map(s => `
-                <div class="flex justify-between items-center bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
-                    <div class="flex items-center gap-3"><div class="w-8 h-8 bg-zinc-800 rounded-full"></div><span class="font-bold text-sm">${s}</span></div>
-                    <button onclick="search('${s}')" class="text-blue-400 text-xs font-bold">Ansehen</button>
-                </div>`).join('') || '<p class="text-zinc-500 text-center py-10 text-xs">Du hast noch niemanden abonniert.</p>';
-        }
-
-        function updateStats() {
-            document.getElementById('stat-subs').innerText = db.subs.length;
-            document.getElementById('stat-likes').innerText = db.likes.length;
-            document.getElementById('stat-hist').innerText = db.history.length;
-        }
-
-        function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
-            const dlAnchorElem = document.createElement('a');
-            dlAnchorElem.setAttribute("href", dataStr);
-            dlAnchorElem.setAttribute("download", "tubeflow_backup.json");
-            dlAnchorElem.click();
-        }
-
-        function importData() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.onchange = e => {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.readAsText(file, 'UTF-8');
-                reader.onload = readerEvent => {
-                    try {
-                        const content = JSON.parse(readerEvent.target.result);
-                        db = content;
-                        save();
-                        alert('Backup erfolgreich geladen!');
-                        location.reload();
-                    } catch(e) { alert('Ungültige Datei!'); }
-                }
-            }
-            input.click();
+                <div class="flex items-center justify-between bg-zinc-900 p-4 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <img src="https://ui-avatars.com/api/?name=${s}&background=random" class="w-8 h-8 rounded-full">
+                        <span class="font-bold">${s}</span>
+                    </div>
+                    <i class="fas fa-bell"></i>
+                </div>`).join('') || "Keine Abos";
         }
 
         function closePlayer() {
@@ -279,10 +227,7 @@ m<!DOCTYPE html>
             document.getElementById('main-player').src = "";
         }
 
-        function clearStorage() { localStorage.clear(); location.reload(); }
-
         search();
-        updateStats();
     </script>
 </body>
 </html>
