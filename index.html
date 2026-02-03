@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>24/7 Live Musik Radio</title>
+    <style>
+        :root {
+            --primary: #ff4757;
+            --bg: #0f0f0f;
+            --card: #1e1e2e;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Video wird fast unsichtbar im Hintergrund platziert */
+        #player-container {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+        }
+
+        .radio-card {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 350px;
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .live-indicator {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        h1 { margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+        p { opacity: 0.7; font-size: 0.9rem; margin-bottom: 2rem; }
+
+        .controls button {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+        }
+
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.5);
+        }
+
+        .controls button:active { transform: translateY(0); }
+
+        .next-btn {
+            margin-top: 1rem;
+            background: transparent !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+            font-size: 0.8rem !important;
+            padding: 8px 20px !important;
+        }
+
+        #current-stream-name {
+            font-weight: bold;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="radio-card">
+        <div class="live-indicator">● Live Stream</div>
+        <h1 id="status-headline">Musik Radio</h1>
+        <p id="stream-info">Wähle einen Stream und genieße die Musik</p>
+        
+        <div class="controls">
+            <button id="play-pause-btn">RADIO STARTEN</button>
+            <br>
+            <button id="next-btn" class="next-btn" style="display:none;">NÄCHSTER SENDER</button>
+        </div>
+    </div>
+
+    <div id="player-container">
+        <div id="youtube-player"></div>
+    </div>
+
+    <script>
+        // Liste bekannter 24/7 Musik Live-Streams (YouTube IDs)
+        const streams = [
+            { id: 'jfKfPfyJRdk', name: 'Lofi Girl (Beats to study)' },
+            { id: '5qap5aO4i9A', name: 'Lofi Girl (Beats to sleep)' },
+            { id: '4xDzrJKXOOY', name: 'Synthwave Radio 24/7' },
+            { id: 'dwDns8x3Jb4', name: 'Chillhop Radio' },
+            { id: 'rPjez8z61rI', name: 'Coffee Shop Jazz' }
+        ];
+
+        let currentTrack = 0;
+        let player;
+        const playBtn = document.getElementById('play-pause-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const streamInfo = document.getElementById('stream-info');
+
+        // YouTube API laden
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-player', {
+                height: '0',
+                width: '0',
+                videoId: streams[currentTrack].id,
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 0,
+                    'disablekb': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            playBtn.addEventListener('click', function() {
+                if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    player.pauseVideo();
+                    playBtn.innerText = "WEITER ABSPIELEN";
+                } else {
+                    player.playVideo();
+                    playBtn.innerText = "PAUSE";
+                    nextBtn.style.display = "inline-block";
+                    updateUI();
+                }
+            });
+
+            nextBtn.addEventListener('click', playNext);
+        }
+
+        function playNext() {
+            currentTrack = (currentTrack + 1) % streams.length;
+            player.loadVideoById(streams[currentTrack].id);
+            updateUI();
+        }
+
+        function onPlayerStateChange(event) {
+            // Falls der Stream stoppt oder zu Ende ist (unwahrscheinlich bei 24/7)
+            if (event.data === YT.PlayerState.ENDED) {
+                playNext();
+            }
+        }
+
+        function onPlayerError(event) {
+            console.log("Stream nicht verfügbar, springe zum nächsten...");
+            playNext();
+        }
+
+        function updateUI() {
+            streamInfo.innerHTML = `Sender: <span id="current-stream-name">${streams[currentTrack].name}</span>`;
+        }
+    </script>
+</body>
+</html>
