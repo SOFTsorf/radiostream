@@ -2,174 +2,180 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>TubeFlow Mobile v2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TubeFlow Ultimate</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        :root { --yt-red: #ff0000; }
+        body { background-color: #000; color: #fff; font-family: Roboto, Arial, sans-serif; margin: 0; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        
-        /* Smooth Slide-Up Player */
         #player-overlay { 
             transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+            transition: transform 0.3s ease-in-out;
         }
         #player-overlay.active { transform: translateY(0); }
-
-        /* Mobile Tap Effects */
-        .tap-target:active { background-color: #222; }
-        .video-card:active { opacity: 0.6; }
+        .active-tab { color: #fff !important; }
+        .video-card:active { background-color: #1a1a1a; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
-    <header class="flex items-center justify-between px-4 py-3 bg-black sticky top-0 z-50">
+    <header class="flex items-center justify-between px-4 py-3 bg-black z-50">
         <div class="flex items-center gap-1">
-            <i class="fab fa-youtube text-red-600 text-3xl"></i>
+            <i class="fab fa-youtube text-[--yt-red] text-3xl"></i>
             <span class="text-xl font-bold tracking-tighter">TubeFlow</span>
         </div>
         <div class="flex items-center gap-5">
             <i class="fas fa-search text-xl" onclick="toggleSearch()"></i>
-            <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full"></div>
+            <div id="userProfile" class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold">U</div>
         </div>
     </header>
 
     <div id="searchBar" class="hidden px-4 py-2 bg-black border-b border-zinc-800">
-        <div class="flex items-center bg-zinc-900 rounded-full px-4 py-1">
-            <input type="text" id="searchInput" placeholder="Suchen..." 
-                class="w-full bg-transparent py-2 outline-none text-sm">
-            <i class="fas fa-times text-zinc-400" onclick="toggleSearch()"></i>
+        <div class="flex items-center bg-zinc-900 rounded-lg px-4 py-1">
+            <input type="text" id="searchInput" placeholder="YouTube durchsuchen" class="w-full bg-transparent py-2 outline-none text-sm">
+            <button onclick="searchVideos()"><i class="fas fa-search text-zinc-400"></i></button>
         </div>
     </div>
 
-    <div class="flex gap-2 p-3 overflow-x-auto no-scrollbar bg-black border-b border-zinc-900">
-        <button onclick="searchVideos('Trends')" class="bg-zinc-800 px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap">Trends</button>
-        <button onclick="searchVideos('Musik')" class="bg-zinc-800 px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap">Musik</button>
-        <button onclick="searchVideos('Gaming')" class="bg-zinc-800 px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap">Gaming</button>
-        <button onclick="searchVideos('Shorts')" class="bg-zinc-800 px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap">Shorts</button>
-    </div>
-
-    <main id="videoGrid" class="flex-1 overflow-y-auto pb-24">
-        <div id="status" class="text-center p-10 text-zinc-500">Lade Startseite...</div>
+    <main id="mainContent" class="flex-1 overflow-y-auto pb-24">
+        <div id="videoGrid" class="grid grid-cols-1 gap-1">
+            </div>
     </main>
 
-    <nav class="fixed bottom-0 w-full bg-black border-t border-zinc-900 flex justify-between px-6 py-3 z-40">
-        <div class="flex flex-col items-center gap-1 text-[10px]" onclick="searchVideos('Trends')">
-            <i class="fas fa-house text-lg"></i><span>Home</span>
+    <div id="subsView" class="hidden flex-1 overflow-y-auto p-4 pb-24">
+        <h2 class="text-xl font-bold mb-4">Deine Abos (Lokal)</h2>
+        <div id="subsList" class="space-y-4">
+            <p class="text-zinc-500 italic">Noch keine Kanäle abonniert.</p>
         </div>
-        <div class="flex flex-col items-center gap-1 text-[10px]" onclick="searchVideos('Shorts')">
-            <i class="fas fa-bolt text-lg"></i><span>Shorts</span>
-        </div>
-        <div class="flex flex-col items-center justify-center -mt-2">
+    </div>
+
+    <nav class="fixed bottom-0 w-full bg-black border-t border-zinc-900 flex justify-around pt-3 pb-6 z-40">
+        <button onclick="showSection('home')" class="flex flex-col items-center gap-1 text-zinc-400">
+            <i class="fas fa-house text-lg"></i><span class="text-[10px]">Home</span>
+        </button>
+        <button onclick="showSection('subs')" class="flex flex-col items-center gap-1 text-zinc-400">
+            <i class="fas fa-layer-group text-lg"></i><span class="text-[10px]">Abos</span>
+        </button>
+        <button class="flex flex-col items-center justify-center -mt-2">
             <i class="fas fa-circle-plus text-3xl"></i>
-        </div>
-        <div class="flex flex-col items-center gap-1 text-[10px]">
-            <i class="fas fa-layer-group text-lg"></i><span>Abos</span>
-        </div>
-        <div class="flex flex-col items-center gap-1 text-[10px]">
-            <i class="fas fa-user-circle text-lg"></i><span>Ich</span>
-        </div>
+        </button>
+        <button onclick="alert('Bibliothek kommt bald!')" class="flex flex-col items-center gap-1 text-zinc-400">
+            <i class="fas fa-play-circle text-lg"></i><span class="text-[10px]">Mediathek</span>
+        </button>
     </nav>
 
     <div id="player-overlay" class="fixed inset-0 bg-black z-[60] flex flex-col">
-        <div class="p-4 bg-black flex items-center justify-between">
-            <button onclick="closePlayer()" class="text-xl p-2"><i class="fas fa-chevron-down"></i></button>
-            <span class="text-xs text-zinc-400">Stream läuft</span>
-            <i class="fas fa-ellipsis-v p-2"></i>
-        </div>
-        <div class="w-full aspect-video bg-zinc-900">
+        <div class="p-2 flex items-center"><button onclick="closePlayer()" class="p-2 text-2xl"><i class="fas fa-chevron-down"></i></button></div>
+        <div id="videoWrapper" class="w-full aspect-video">
             <iframe id="main-player" width="100%" height="100%" src="" frameborder="0" allowfullscreen allow="autoplay"></iframe>
         </div>
-        <div class="p-5 overflow-y-auto flex-1">
-            <h1 id="player-title" class="text-lg font-bold leading-tight">Video Titel</h1>
-            <p id="player-channel" class="text-zinc-400 text-sm mt-2">Kanal</p>
-            <div class="flex gap-2 mt-6 overflow-x-auto no-scrollbar">
-                <button class="bg-zinc-800 px-4 py-2 rounded-full text-xs font-bold"><i class="fas fa-thumbs-up mr-2"></i> 12K</button>
-                <button class="bg-zinc-800 px-4 py-2 rounded-full text-xs font-bold"><i class="fas fa-share mr-2"></i> Teilen</button>
-                <button class="bg-zinc-800 px-4 py-2 rounded-full text-xs font-bold"><i class="fas fa-download mr-2"></i> Remix</button>
+        <div class="p-4 flex-1 overflow-y-auto">
+            <h1 id="player-title" class="text-lg font-bold leading-tight line-clamp-2">Lade Video...</h1>
+            <div class="flex items-center justify-between mt-4 border-b border-zinc-800 pb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-9 h-9 bg-zinc-700 rounded-full"></div>
+                    <div>
+                        <p id="player-channel" class="font-bold text-sm">Kanal Name</p>
+                        <p class="text-zinc-400 text-[10px]">1.2 Mio. Abonnenten</p>
+                    </div>
+                </div>
+                <button id="subBtn" onclick="toggleSubscribe()" class="bg-white text-black px-4 py-2 rounded-full text-xs font-bold">Abonnieren</button>
             </div>
-            <div class="mt-6 p-3 bg-zinc-900 rounded-xl text-sm">
-                <p class="font-bold">Kommentare <span class="text-zinc-400 font-normal">241</span></p>
-                <p class="mt-2 text-zinc-300">Schon krass das Projekt!</p>
+            <div class="flex gap-2 mt-4 overflow-x-auto no-scrollbar pb-2">
+                <button class="bg-zinc-800 px-4 py-2 rounded-full text-xs whitespace-nowrap"><i class="fas fa-thumbs-up mr-2"></i> Mag ich</button>
+                <button class="bg-zinc-800 px-4 py-2 rounded-full text-xs whitespace-nowrap"><i class="fas fa-share mr-2"></i> Teilen</button>
+                <button class="bg-zinc-800 px-4 py-2 rounded-full text-xs whitespace-nowrap"><i class="fas fa-download mr-2"></i> Download</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Liste von Ersatz-Servern
-        const INSTANCES = [
-            "https://invidious.lunar.icu",
-            "https://inv.vern.cc",
-            "https://invidious.flokinet.to",
-            "https://invidious.projectsegfau.lt"
-        ];
-        let currentInstanceIdx = 0;
+        const INSTANCE = "https://inv.vern.cc"; // Invidious Instance
+        let currentVideo = null;
+        let mySubscriptions = JSON.parse(localStorage.getItem('tubeFlow_subs')) || [];
 
         function toggleSearch() {
             const bar = document.getElementById('searchBar');
             bar.classList.toggle('hidden');
-            if(!bar.classList.contains('hidden')) document.getElementById('searchInput').focus();
-        }
-
-        async function fetchFromInvidious(endpoint) {
-            for(let i=0; i < INSTANCES.length; i++) {
-                try {
-                    const res = await fetch(`${INSTANCES[currentInstanceIdx]}${endpoint}`);
-                    if (res.ok) return await res.json();
-                } catch (e) {
-                    console.log(`Server ${INSTANCES[currentInstanceIdx]} down, wechsle...`);
-                    currentInstanceIdx = (currentInstanceIdx + 1) % INSTANCES.length;
-                }
-            }
-            throw new Error("Alle Server überlastet.");
         }
 
         async function searchVideos(query = 'Trends') {
-            const searchVal = document.getElementById('searchInput').value;
-            const term = searchVal || query;
+            const term = document.getElementById('searchInput').value || query;
             const grid = document.getElementById('videoGrid');
-            const status = document.getElementById('status');
-            
-            grid.innerHTML = '<div class="p-20 text-center animate-pulse">Suche auf YouTube...</div>';
-            document.getElementById('searchBar').classList.add('hidden');
+            grid.innerHTML = '<div class="p-20 text-center">Wird geladen...</div>';
+            showSection('home');
 
             try {
-                const data = await fetchFromInvidious(`/api/v1/search?q=${encodeURIComponent(term)}`);
+                const res = await fetch(`${INSTANCE}/api/v1/search?q=${encodeURIComponent(term)}`);
+                const data = await res.json();
                 grid.innerHTML = '';
-                
                 data.forEach(v => {
-                    if(v.type === "video") {
+                    if(v.type === 'video') {
                         grid.innerHTML += `
                             <div class="video-card mb-4" onclick="openPlayer('${v.videoId}', '${v.title.replace(/'/g, "")}', '${v.author}')">
-                                <div class="relative">
-                                    <img src="${v.videoThumbnails[0].url}" class="w-full aspect-video object-cover bg-zinc-800">
-                                    <span class="absolute bottom-2 right-2 bg-black/90 text-[10px] px-1.5 py-0.5 rounded font-bold">
-                                        ${v.lengthSeconds ? Math.floor(v.lengthSeconds/60) + ':' + String(v.lengthSeconds%60).padStart(2,'0') : 'LIVE'}
-                                    </span>
-                                </div>
+                                <img src="${v.videoThumbnails[0].url}" class="w-full aspect-video object-cover bg-zinc-900">
                                 <div class="flex gap-3 p-3">
-                                    <div class="w-9 h-9 bg-zinc-800 rounded-full flex-shrink-0"></div>
+                                    <div class="w-10 h-10 bg-zinc-800 rounded-full"></div>
                                     <div class="flex-1">
-                                        <h3 class="text-sm font-medium leading-tight line-clamp-2">${v.title}</h3>
-                                        <p class="text-zinc-400 text-[11px] mt-1">${v.author} • ${v.viewCountText} • ${v.publishedText}</p>
+                                        <h3 class="text-sm font-medium line-clamp-2">${v.title}</h3>
+                                        <p class="text-zinc-400 text-[11px] mt-1">${v.author} • ${v.viewCountText}</p>
                                     </div>
-                                    <i class="fas fa-ellipsis-v text-zinc-500 text-xs"></i>
                                 </div>
-                            </div>
-                        `;
+                            </div>`;
                     }
                 });
-            } catch (e) {
-                grid.innerHTML = `<div class="p-10 text-center text-red-500 font-bold">${e.message}</div>`;
-            }
+            } catch (e) { grid.innerHTML = '<p class="p-10 text-center">Fehler beim Laden.</p>'; }
         }
 
         function openPlayer(id, title, channel) {
-            document.getElementById('main-player').src = `https://www.youtube.com/embed/${id}?autoplay=1&modestbranding=1`;
+            currentVideo = { id, title, channel };
+            document.getElementById('main-player').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
             document.getElementById('player-title').innerText = title;
             document.getElementById('player-channel').innerText = channel;
+            
+            const isSubbed = mySubscriptions.includes(channel);
+            const btn = document.getElementById('subBtn');
+            btn.innerText = isSubbed ? 'Abonniert' : 'Abonnieren';
+            btn.className = isSubbed ? 'bg-zinc-800 text-white px-4 py-2 rounded-full text-xs font-bold' : 'bg-white text-black px-4 py-2 rounded-full text-xs font-bold';
+
             document.getElementById('player-overlay').classList.add('active');
+        }
+
+        function toggleSubscribe() {
+            const channel = currentVideo.channel;
+            if(mySubscriptions.includes(channel)) {
+                mySubscriptions = mySubscriptions.filter(s => s !== channel);
+            } else {
+                mySubscriptions.push(channel);
+            }
+            localStorage.setItem('tubeFlow_subs', JSON.stringify(mySubscriptions));
+            openPlayer(currentVideo.id, currentVideo.title, channel); // UI Refresh
+            updateSubsList();
+        }
+
+        function updateSubsList() {
+            const list = document.getElementById('subsList');
+            if(mySubscriptions.length === 0) {
+                list.innerHTML = '<p class="text-zinc-500 italic">Noch keine Kanäle abonniert.</p>';
+                return;
+            }
+            list.innerHTML = mySubscriptions.map(s => `
+                <div class="flex items-center justify-between bg-zinc-900 p-3 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-zinc-800 rounded-full"></div>
+                        <span class="font-bold">${s}</span>
+                    </div>
+                    <button onclick="searchVideos('${s}')" class="text-blue-500 text-sm">Videos zeigen</button>
+                </div>
+            `).join('');
+        }
+
+        function showSection(section) {
+            document.getElementById('mainContent').classList.toggle('hidden', section !== 'home');
+            document.getElementById('subsView').classList.toggle('hidden', section !== 'subs');
+            document.getElementById('searchBar').classList.add('hidden');
         }
 
         function closePlayer() {
@@ -177,11 +183,8 @@
             document.getElementById('main-player').src = '';
         }
 
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') searchVideos();
-        });
-
-        searchVideos('Neuheiten');
+        searchVideos();
+        updateSubsList();
     </script>
 </body>
 </html>
